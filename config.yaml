@@ -1,0 +1,62 @@
+---
+categories:
+  editors:
+    Emacs GUI: emacs -c -a emacs
+    Emacs Terminal: terminator -e "emacsclient -t"
+    Google Docs: docs.google.com
+    Libreoffice Suite: libreoffice
+    Neovim: terminator -e nvim
+    Neovim GUI: nvim-qt
+  freq:
+    Atril PDF Viewer: atril
+    Calibre: calibre
+    Cmus Music Player: terminator -e cmus
+    Eye of Gnome Photo Viewer: eog
+    Google Mail: firefox --new-window mail.google.com
+    Google Meet: firefox --new-window meet.google.com
+    Minecraft: minecraft
+    Music Player: elisa
+    Okular PDF Viewer: okular
+    Redshift: redshift
+    Vlc Media Player: vlc
+    Zoom: zoom
+  logoff:
+    Hibernate: systemctl hibernate
+    Log Out: pkill -u caligian
+    Poweroff: systemctl poweroff
+    Reboot: systemctl reboot
+    Suspend: systemctl suspend
+  swapWorkspace:
+    '1': bash /home/caligian/.config/i3/swapWorkspace 1
+    '10': bash /home/caligian/.config/i3/swapWorkspace 10
+    '2': bash /home/caligian/.config/i3/swapWorkspace 2
+    '3': bash /home/caligian/.config/i3/swapWorkspace 3
+    '4': bash /home/caligian/.config/i3/swapWorkspace 4
+    '5': bash /home/caligian/.config/i3/swapWorkspace 5
+    '6': bash /home/caligian/.config/i3/swapWorkspace 6
+    '7': bash /home/caligian/.config/i3/swapWorkspace 7
+    '8': bash /home/caligian/.config/i3/swapWorkspace 8
+    '9': bash /home/caligian/.config/i3/swapWorkspace 9
+  websites:
+    DuckDuckGo Search Engine: firefox --new-window duckduckgo.com
+    Forum for INTPs: firefox --new-window   intpforum.com
+    Google Docs: firefox --new-window docs.google.com
+    Google Meet: firefox --new-window meet.google.com
+    Google Search Engine: firefox --new-window google.com
+    Libgen library: firefox --new-window libgen.rs
+    PDFDrive: firefox --new-window pdfdrive.com
+    Reddit: firefox --new-window reddit.com
+    Scihub: firefox --new-window scihubtw.tw
+    Youtube: firefox --new-window  youtube.com
+    b-ok.asia: firefox --new-window b-ok.asia
+config:
+  aliases:
+    browser: firefox --new-window
+    browserBin: firefox
+    browserPrivate: firefox --private-window
+    emacsgui: emacsclient -c -a emacs
+    emacsterminal: emacsclient -t
+    home: /home/caligian
+  dmenuParams: ''
+  i3-colors: /home/caligian/bin/i3-colors
+  i3config: /home/caligian/.config/i3/user/default.i3

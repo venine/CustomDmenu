@@ -1,0 +1,251 @@
+#!/usr/bin/perl
+
+use Getopt::Std;
+use YAML::XS qw(Dump LoadFile);
+use Data::Dumper;
+use strict;
+use warnings;
+use Scalar::Util qw(reftype);
+
+our $mainconfig = {};
+our $command = {};
+our $config = {};
+our $settings = "$ENV{HOME}/.config/CustomDmenu/config.yaml";
+our $home = "$ENV{HOME}";
+
+sub LoadConfig {
+    my $loc = $ENV{HOME} . "/.config/CustomDmenu/config.yaml";
+    $config = LoadFile($loc);
+}
+
+sub WriteConfig {
+    my $yaml = Dump($mainconfig);
+    open my $FH, ">", $settings;
+    # reverse the processes - replace the expansions with the aliases. 
+    ReplaceAliases($command, 1); 
+    print $FH $yaml; 
+}
+
+sub GetDmenuParameters {
+    return $mainconfig->{config}->{dmenuParams} if $mainconfig->{config}->{dmenuParams} ne ""; 
+    my $loc = $mainconfig->{config}->{i3config};
+    open my $fh, "<", $loc;
+    my @lines = <$fh>;
+    close $fh;
+    my $found = 0;
+    my $dmenuParams = "";
+    my $idx = 0;
+    foreach my $line (@lines) {
+	if ($line =~ /dmenu_run\s*(-.+)/) {
+	    $dmenuParams = $1;
+	    $found = 1;
+	    last;
+	}
+	++$idx;
+    }
+    die "Dmenu is not being used. Exiting.\n" if not $found;
+    return $dmenuParams; 
+}
+
+
+# 1 = available ; 2 = exec prog ; 3 = dmenu params 
+sub Executor {
+  my ($hashref, $prog, $dmenuParams) = ("", "", "");
+  my $nparams = scalar @_;
+  $hashref = shift;
+  $prog = shift if $nparams > 1; 
+  $dmenuParams = shift if $nparams > 2;
+  $hashref = $hashref->{$prog} if $prog ne ""; 
+  $dmenuParams = GetDmenuParameters() if $dmenuParams eq "";
+  
+  my @names = keys %$hashref; 
+  if ($prog eq "swapWorkspace") { 
+    @names = sort { $a <=> $b } map { int $_ } @names;
+  } elsif ($prog eq "websites") {
+    my $browserAliasDefault = $config->{aliases}->{browser};
+    my $private = $config->{aliases}->{browserPrivate};
+    my @add = (); 
+    foreach my $alias (@names) {
+      my $a = "(Private) $alias";
+      my $w = $hashref->{$alias};
+      my $wP = $w =~ s/$browserAliasDefault/$private/r;
+      $hashref->{$a} = $wP;
+      push @add, $a; 
+    }
+    push @names, @add;
+    
+    my $normal = {};
+    $private = {};
+    map { $_ =~ /Private/i ? $private->{$_} = $hashref->{$_} : $normal->{$_} = $hashref->{$_} } @names;
+    $hashref = {};
+    @names = ();
+    $hashref->{sprintf "%s (%s)", "Normal", $config->{aliases}->{browserBin}} = $normal;
+    $hashref->{sprintf "%s (%s)", "Private", $config->{aliases}->{browserBin}} = $private;
+    Executor($hashref, "", $dmenuParams);
+  }
+
+  if (@names) { 
+    my $len = scalar @names;
+    $len = 20 if $len > 20;
+    my $string = join "\n", @names; 
+    my $cmd = qq(echo '$string' |  dmenu -i $dmenuParams -l $len);
+    my $execProg = qx/ $cmd /;
+    chomp $execProg;
+
+    $prog = $hashref->{$execProg};
+  
+    if (defined $prog and $prog =~ /\w|[[:alpha:]]/i) { 
+      my $ref = reftype $prog; 
+      if (defined $ref and $ref eq "HASH") {
+	Executor($prog, "", $dmenuParams); 
+      } else {
+	qx/$prog/; 
+      }
+    }
+  }
+}
+
+sub HandlePkill {
+    my @ps = qx( ps -e );
+    my @processes = ();
+    map { my @a = split ' ', $_ ; push @processes, $a[3] } @ps;
+    my %p = ();
+    map {
+	my @z = split '/', $_;
+	$p{$z[0]}++;
+    } @processes;
+
+    @processes = keys %p;
+
+    $command->{pkill} = {};
+    map {
+	$command->{pkill}->{$_} = "pkill $_";
+    } @processes;
+
+    Executor($command,"pkill");
+}
+
+sub Handlei3Colors {
+    my $location = $mainconfig->{config}->{"i3-colors"};
+    my @themes = qx( $location --show );
+    foreach my $theme (@themes) {
+	my ($idx, $theme) = split " ", $theme;
+	$command->{"i3-colors"}->{$theme} = sprintf "%s --theme %s", "$location", $idx; 
+    }
+    Executor($command,"i3-colors"); 
+}
+
+sub ShowDrawers {
+    my @allcats = keys %{$command};
+    my $i3config = $mainconfig->{config}->{"i3config"}; 
+    my $prog = ""; 
+    my $str = "";
+    my $len = 0;
+    my $dmenuParams = GetDmenuParameters();
+    
+    map { ++$len if $_ =~ /[[:alnum:]]/ } @allcats;
+    $str = join "\n", @allcats ;
+    $str = sprintf q( echo "%s" | dmenu -i %s -l %s  ), $str, $dmenuParams, $len;
+    $prog = qx($str);
+    chomp $prog;
+
+    if ($prog eq "i3-colors") {
+	Handlei3Colors(); 
+    } elsif ($prog eq "pkill")  { 
+	HandlePkill(); 
+    } else {
+	Executor($command,$prog); 
+    }
+}
+
+sub ReplaceAliases {
+    my $hashref = shift; 
+    my $aliasHash = $config->{aliases};
+    my $reverse = shift;
+
+    # reverse map the aliases too
+    unless (defined $config->{aliasesReverseMapped}) { 
+	$config->{aliasesReverseMapped} = {};
+	foreach my $key (keys %$aliasHash) {
+	    my $value = $aliasHash->{$key};
+	    $config->{aliasesReverseMapped}->{$value} = $key; 
+	}
+    }
+    
+    
+    foreach my $k (keys %$hashref) {
+	my $ref = reftype $hashref->{$k};
+	if (defined $ref and $ref eq "HASH") {
+	    next if $k eq "aliases"; 
+	    ReplaceAliases($hashref->{$k}); 
+	}
+	elsif (defined $hashref->{$k} and $hashref->{$k} =~ /\$\{([a-zA-Z0-9_]+)\}/) {
+	    die "No such alias [$1] key:[$k] value:[$hashref->{$k}]\n" unless $aliasHash->{$1};
+	    my $alias = $1;
+	    my $real  = $aliasHash->{$alias};
+	    my $elem = $hashref->{$k};
+	    $elem =~ s/\$\{$alias\}/$real/;
+	    $hashref->{$k} = $elem; 
+	}
+	if ($reverse) {
+	    if (defined $hashref->{$k}) {
+		foreach my $a (keys %{$config->{aliasesReverseMapped}}) {
+		    if ($hashref->{$k} =~ /($a)/) {
+			my $originalAlias = sprintf '${%s}', $config->{aliasesReverseMapped}->{$1}; 
+			$hashref->{$k} =~ s/$1/$originalAlias/; 
+		    }
+		}
+	    }
+	} 
+    }
+}
+
+sub AppendCommand {
+    my ($category, $alias) = @_; 
+    my $StripWhitespace = sub { return $_[0] =~ s/^\s*//r =~ s/\s*$//r }; 
+    
+    if ($alias =~ /::/) {
+	$command->{$category} = {} if not defined $command->{$category};
+	if ($alias =~ /,/) {
+	    my @aliases = split /\s*,\s*/, $alias;
+	    map {
+		my ($a, $c) = split /\s*::\s*/, $_;
+		($a, $c) = ($StripWhitespace->($a), $StripWhitespace->($c));
+		$command->{$category}->{$a} = $c;
+	    } @aliases;
+
+	} elsif ($alias ne "") {
+	    $category = $StripWhitespace->($category);
+	    my ($a, $c) = split /\s*::\s*/, $alias;
+	    $command->{$category}->{$a} = $c;
+	}
+    } elsif ($alias ne "" and $alias !~ /::/) {
+	die "Invalid format provided for -m INPUT.\n";
+    }
+    WriteConfig();
+}
+
+
+
+our ($opt_c, $opt_m, $opt_t, $opt_k, $opt_a); 
+getopts("c:m:tka"); 
+
+$mainconfig = LoadConfig();
+$command = $mainconfig->{categories};
+$config = $mainconfig->{config};
+ReplaceAliases($config); 
+ReplaceAliases($command);
+
+if ($opt_c and $opt_m) {
+    AppendCommand($opt_c, $opt_m);
+} elsif ($opt_c) {
+    Executor($command, $opt_c); 
+} elsif ($opt_t) {
+     Handlei3Colors();
+} elsif ($opt_k) {
+    HandlePkill(); 
+} elsif ($opt_a) {
+    ShowDrawers(); 
+}
+
+
