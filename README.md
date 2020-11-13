@@ -10,7 +10,7 @@ Clone this repo to efficiently integrate themes with i3wm by using this menu - h
 4. Seamless integration with i3-colors
 
 ### Usage
-Let us first understand the structure 
+Let us first understand the structure. 
 Now this can be recursive. You can imagine it as a tree.
 
 ![Structure](https://github.com/venine/CustomDmenu/blob/master/cdmenu.png?raw=true)
