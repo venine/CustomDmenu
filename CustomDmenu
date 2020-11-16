@@ -2,10 +2,10 @@
 
 use Getopt::Std;
 use YAML::XS qw(Dump LoadFile);
-use Data::Dumper;
 use strict;
 use warnings;
 use Scalar::Util qw(reftype);
+use Data::Dumper; 
 
 our $mainconfig = {};
 our $command = {};
@@ -19,10 +19,10 @@ sub LoadConfig {
 }
 
 sub WriteConfig {
-    my $yaml = Dump($mainconfig);
     open my $FH, ">", $settings;
     # reverse the processes - replace the expansions with the aliases. 
-    ReplaceAliases($command, 1); 
+    ReplaceAliases($command, 1);
+    my $yaml = Dump($mainconfig);
     print $FH $yaml; 
 }
 
@@ -99,7 +99,9 @@ sub Executor {
       if (defined $ref and $ref eq "HASH") {
 	Executor($prog, "", $dmenuParams); 
       } else {
-	qx/$prog/; 
+	  qx/$prog/;
+	  print $prog, "\n"; 
+	  print $?, "\n";
       }
     }
   }
@@ -144,6 +146,7 @@ sub ShowDrawers {
     my $dmenuParams = GetDmenuParameters();
     
     map { ++$len if $_ =~ /[[:alnum:]]/ } @allcats;
+    push @allcats, "All Apps"; 
     $str = join "\n", @allcats ;
     $str = sprintf q( echo "%s" | dmenu -i %s -l %s  ), $str, $dmenuParams, $len;
     $prog = qx($str);
@@ -153,9 +156,17 @@ sub ShowDrawers {
 	Handlei3Colors(); 
     } elsif ($prog eq "pkill")  { 
 	HandlePkill(); 
+    } elsif ($prog eq "All Apps") {
+	Normal();
     } else {
 	Executor($command,$prog); 
     }
+}
+
+sub Normal {
+    my $dmenuParams = GetDmenuParameters();
+    qx/dmenu_run $dmenuParams/;
+    exit;
 }
 
 sub ReplaceAliases {
@@ -171,32 +182,32 @@ sub ReplaceAliases {
 	    $config->{aliasesReverseMapped}->{$value} = $key; 
 	}
     }
-    
-    
     foreach my $k (keys %$hashref) {
 	my $ref = reftype $hashref->{$k};
 	if (defined $ref and $ref eq "HASH") {
 	    next if $k eq "aliases"; 
-	    ReplaceAliases($hashref->{$k}); 
-	}
-	elsif (defined $hashref->{$k} and $hashref->{$k} =~ /\$\{([a-zA-Z0-9_]+)\}/) {
-	    die "No such alias [$1] key:[$k] value:[$hashref->{$k}]\n" unless $aliasHash->{$1};
-	    my $alias = $1;
-	    my $real  = $aliasHash->{$alias};
-	    my $elem = $hashref->{$k};
-	    $elem =~ s/\$\{$alias\}/$real/;
-	    $hashref->{$k} = $elem; 
+	    ReplaceAliases($hashref->{$k}, $reverse); 
 	}
 	if ($reverse) {
 	    if (defined $hashref->{$k}) {
 		foreach my $a (keys %{$config->{aliasesReverseMapped}}) {
 		    if ($hashref->{$k} =~ /($a)/) {
 			my $originalAlias = sprintf '${%s}', $config->{aliasesReverseMapped}->{$1}; 
-			$hashref->{$k} =~ s/$1/$originalAlias/; 
+			$hashref->{$k} =~ s/$1/$originalAlias/;
 		    }
 		}
 	    }
 	} 
+	elsif (defined $hashref->{$k} and $hashref->{$k} =~ /\$\{([a-zA-Z0-9_]+)\}/) {
+	    while ($hashref->{$k} =~ /\$\{([a-zA-Z0-9_]+)\}/g) {
+		die "No such alias [$1] key:[$k] value:[$hashref->{$k}]\n" unless $aliasHash->{$1};
+		my $alias = $1;
+		my $real  = $aliasHash->{$alias};
+		my $elem = $hashref->{$k};
+		$elem =~ s/\$\{$alias\}/$real/;
+		$hashref->{$k} = $elem; 
+	    }
+	}
     }
 }
 
