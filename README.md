@@ -10,15 +10,11 @@ Clone this repo to efficiently integrate themes with i3wm by using this menu - h
 4. Seamless integration with i3-colors
 
 ### Usage
-Let us first understand the structure -
-
+Let us first understand the structure. 
 Now this can be recursive. You can imagine it as a tree.
 
-
-
-Example
-
-
+![Structure](https://github.com/venine/CustomDmenu/blob/master/cdmenu.png?raw=true)
+![Structure](https://github.com/venine/CustomDmenu/blob/master/cdmenu1eg.png?raw=true)
 
 - `-c CATEGORY`				CATEGORY is the name of the category. It can be nested.
 - `-c CATEGORY -m 'ALIAS::COMMAND'`	Alias and command in a category CATEGORY.
@@ -51,7 +47,7 @@ Also, aliases exist as ${ALIAS} as placeholders in areas where you want them to 
 
 ### Requirements
 1. Perl
-2. Perl Modules - YAML::XS, Getopt::Std, Scalar::Util `sudo cpan YAML::XS, Getopt::Std, Scalar::Util`
+2. Perl Modules - YAML::XS, Getopt::Std, Scalar::Util `sudo cpan YAML::XS Getopt::Std Scalar::Util`
 3. i3 
 4. i3-colors - if you want to use the -t flag with this program. 
 5. dmenu - of course. 
